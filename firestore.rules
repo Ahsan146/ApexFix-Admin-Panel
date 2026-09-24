@@ -1,0 +1,75 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn() && request.auth.token.admin == true;
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /services/{serviceId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /technicians/{technicianId} {
+      allow read: if true;
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() ||
+        (signedIn() && request.auth.uid == technicianId);
+    }
+
+    match /customers/{customerId} {
+      allow read: if isAdmin() ||
+        (signedIn() && request.auth.uid == customerId);
+      allow create, update: if isAdmin() ||
+        (signedIn() && request.auth.uid == customerId &&
+         request.resource.data.email is string &&
+         request.resource.data.fullName is string);
+      allow delete: if isAdmin() ||
+        (signedIn() && request.auth.uid == customerId);
+    }
+
+    match /bookings/{bookingId} {
+      allow read: if isAdmin() || (signedIn() && (
+        resource.data.customerId == request.auth.uid ||
+        resource.data.technicianId == request.auth.uid ||
+        resource.data.status == 'searchingTechnician'
+      ));
+
+      allow create: if isAdmin() || (signedIn() &&
+        request.resource.data.customerId == request.auth.uid &&
+        request.resource.data.serviceCharge.baseServiceFee is number &&
+        request.resource.data.serviceCharge.baseServiceFee >= 1000 &&
+        request.resource.data.serviceCharge.total is number &&
+        request.resource.data.serviceCharge.total >= request.resource.data.serviceCharge.baseServiceFee &&
+        request.resource.data.serviceName is string &&
+        request.resource.data.status == 'searchingTechnician');
+
+      allow update: if isAdmin() || (signedIn() && (
+        (resource.data.customerId == request.auth.uid &&
+          request.resource.data.status == 'cancelled' &&
+          resource.data.status in ['searchingTechnician', 'pending', 'accepted']) ||
+        (resource.data.status == 'searchingTechnician' &&
+          request.resource.data.status == 'accepted' &&
+          request.resource.data.technicianId == request.auth.uid) ||
+        (resource.data.technicianId == request.auth.uid && (
+          (resource.data.status == 'accepted' && request.resource.data.status == 'onTheWay') ||
+          (resource.data.status == 'onTheWay' && request.resource.data.status == 'arrived') ||
+          (resource.data.status == 'arrived' && request.resource.data.status == 'inProgress') ||
+          (resource.data.status == 'inProgress' && request.resource.data.status == 'completed')
+        ))
+      ));
+
+      allow delete: if isAdmin();
+    }
+  }
+}
