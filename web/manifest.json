@@ -1,0 +1,9 @@
+{
+  "name": "ApexFix Admin",
+  "short_name": "ApexFix Admin",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#F6F7FB",
+  "theme_color": "#171A21",
+  "description": "ApexFix professional service management dashboard"
+}
