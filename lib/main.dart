@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'firebase_options.dart';
 
-const navy=Color(0xFF171A21), yellow=Color(0xFFFFC928), bg=Color(0xFFF6F7FB);
+const navy=Color.fromARGB(255, 21, 19, 50), yellow=Color(0xFFFFC928), bg=Color(0xFFF6F7FB);
 const line=Color(0xFFE7E9EF), muted=Color(0xFF737A8A), purple=Color(0xFF6658D3);
 const green=Color(0xFF2E9D6F), red=Color(0xFFD95C5C), blue=Color(0xFF4285F4);
 
@@ -120,8 +120,8 @@ class Sidebar extends StatelessWidget {
   const Sidebar(this.selected,this.onTap,{super.key});
   Widget item(Section s,IconData icon,String label)=>ListTile(
     dense:true,selected:selected==s,selectedTileColor:yellow.withValues(alpha:.16),
-    leading:Icon(icon,color:selected==s?navy:Colors.white54),
-    title:Text(label,style:TextStyle(color:selected==s?navy:Colors.white70,fontWeight:selected==s?FontWeight.w800:FontWeight.w500)),
+    leading:Icon(icon,color:selected==s?yellow:Colors.white54),
+    title:Text(label,style:TextStyle(color:selected==s?yellow:Colors.white70,fontWeight:selected==s?FontWeight.w800:FontWeight.w500)),
     onTap:()=>onTap(s));
   @override Widget build(BuildContext c)=>Container(width:240,color:navy,child:Column(children:[
     const SizedBox(height:28),const Padding(padding:EdgeInsets.symmetric(horizontal:25),child:Logo(dark:true)),const SizedBox(height:15),
