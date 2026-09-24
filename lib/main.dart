@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'firebase_options.dart';
 
 const navy = Color.fromARGB(255, 21, 19, 50);
@@ -31,7 +30,8 @@ class App extends StatelessWidget {
     debugShowCheckedModeBanner:false, title:'ApexFix Admin',
     theme:ThemeData(useMaterial3:true, scaffoldBackgroundColor:bg,
       colorScheme:ColorScheme.fromSeed(seedColor:purple),
-      textTheme:GoogleFonts.robotoTextTheme().apply(bodyColor:navy,displayColor:navy),
+      textTheme:const TextTheme().apply(fontFamily:'CascadiaCode',bodyColor:navy,displayColor:navy),
+      fontFamily:'CascadiaCode',
       cardTheme:CardThemeData(color:Colors.white,elevation:0,margin:EdgeInsets.zero,
         shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(16),side:const BorderSide(color:line)))),
     home:const AuthGate());
@@ -93,7 +93,7 @@ class _LoginState extends State<Login> {
 }
 class Logo extends StatelessWidget {
   final bool dark; const Logo({super.key,this.dark=false});
-  @override Widget build(BuildContext c)=>RichText(text:TextSpan(style:GoogleFonts.roboto(fontSize:27,fontWeight:FontWeight.w900),
+  @override Widget build(BuildContext c)=>RichText(text:TextSpan(style:const TextStyle(fontFamily:'CascadiaCode',fontSize:27,fontWeight:FontWeight.w900),
     children:[TextSpan(text:'Apex',style:TextStyle(color:dark?Colors.white:navy)),const TextSpan(text:'Fix',style:TextStyle(color:yellow))]));
 }
 
