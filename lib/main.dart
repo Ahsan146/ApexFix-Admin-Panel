@@ -78,7 +78,7 @@ class _LoginState extends State<Login> {
           onPressed:busy?null:signIn,style:FilledButton.styleFrom(backgroundColor:navy),
           child:busy?const SizedBox(width:20,height:20,child:CircularProgressIndicator(strokeWidth:2,color:Colors.white)):const Text('Sign in'))),
         const SizedBox(height:15),const Text('Admin access requires the Firebase custom claim admin=true.',style:TextStyle(color:muted,fontSize:12))
-      ]))));
+      ])))));
 }
 class Logo extends StatelessWidget {
   final bool dark; const Logo({super.key,this.dark=false});
