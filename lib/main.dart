@@ -183,29 +183,134 @@ class Metric extends StatelessWidget {
 }
 class Mini extends StatelessWidget { final IconData icon; final String label,value; const Mini(this.icon,this.label,this.value,{super.key}); @override Widget build(BuildContext c)=>Card(child:Padding(padding:const EdgeInsets.all(20),child:Row(children:[Icon(icon,color:purple),const SizedBox(width:12),Expanded(child:Text(label,style:const TextStyle(fontWeight:FontWeight.w800))),Text(value,style:const TextStyle(fontSize:22,fontWeight:FontWeight.w900))]))); }
 
-class Records extends StatelessWidget {
-  final String collection; final List<String> columns;
-  const Records(this.collection,this.columns,{super.key});
-  List<dynamic> row(Map<String,dynamic>x,String id){
-    if(collection=='customers')return[x['fullName']??id,x['email']??'—',x['phoneNumber']??'—',x['role']??'customer'];
-    if(collection=='technicians')return[x['fullName']??id,x['email']??'—',(x['specialties'] as List?)?.join(', ')??'—',numVal(x['rating']).toStringAsFixed(1)+' / 5'];
-    return[x['title']??id,x['categoryId']??'—','PKR '+money(numVal(x['basePrice'])),(x['durationMinutes']??'—').toString()+' min'];
+class Records extends StatefulWidget {
+  final String collection;
+  final List<String> columns;
+  const Records(this.collection, this.columns, {super.key});
+  @override State<Records> createState() => _RecordsState();
+}
+
+class _RecordsState extends State<Records> {
+  List<dynamic> row(Map<String,dynamic> x,String id) {
+    if(widget.collection=='customers') return [x['fullName']??id,x['email']??'—',x['phoneNumber']??'—',x['role']??'customer'];
+    if(widget.collection=='technicians') {
+      final sp=x['specialties'];
+      return [x['fullName']??id,x['email']??'—',sp is List?sp.join(', '):(sp??'—'),numVal(x['rating']).toStringAsFixed(1)+' / 5'];
+    }
+    return [x['title']??id,x['categoryId']??'—','PKR '+money(numVal(x['basePrice'])),(x['durationMinutes']??'—').toString()+' min'];
   }
+
+  Future<void> saveRecord(BuildContext context,{String? id,Map<String,dynamic>? existing}) async {
+    final c=<String,TextEditingController>{};
+    void add(String k,String v)=>c[k]=TextEditingController(text:v);
+    if(widget.collection=='customers'){
+      add('fullName',existing?['fullName']?.toString()??''); add('email',existing?['email']?.toString()??'');
+      add('phoneNumber',existing?['phoneNumber']?.toString()??''); add('role',existing?['role']?.toString()??'customer');
+    } else if(widget.collection=='technicians'){
+      add('fullName',existing?['fullName']?.toString()??''); add('email',existing?['email']?.toString()??'');
+      add('phoneNumber',existing?['phoneNumber']?.toString()??'');
+      final sp=existing?['specialties']; add('specialties',sp is List?sp.join(', '):(sp?.toString()??''));
+      add('rating',existing?['rating']?.toString()??'0');
+    } else {
+      add('title',existing?['title']?.toString()??''); add('categoryId',existing?['categoryId']?.toString()??'');
+      add('basePrice',existing?['basePrice']?.toString()??''); add('durationMinutes',existing?['durationMinutes']?.toString()??'');
+    }
+    final ok=await showDialog<bool>(context:context,builder:(dc)=>AlertDialog(
+      title:Text((id==null?'Add ':'Edit ')+pretty(widget.collection)),
+      content:SizedBox(width:460,child:SingleChildScrollView(child:Column(
+        mainAxisSize:MainAxisSize.min,
+        children:c.entries.map((e)=>Padding(padding:const EdgeInsets.only(bottom:12),child:TextField(
+          controller:e.value,
+          keyboardType:['rating','basePrice','durationMinutes'].contains(e.key)?const TextInputType.numberWithOptions(decimal:true):TextInputType.text,
+          decoration:InputDecoration(labelText:pretty(e.key),hintText:e.key=='specialties'?'e.g. Plumbing, Electrical':null),
+        ))).toList(),
+      ))),
+      actions:[
+        TextButton(onPressed:()=>Navigator.pop(dc,false),child:const Text('Cancel')),
+        FilledButton(onPressed:() async {
+          if(c.values.any((x)=>x.text.trim().isEmpty)){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Please fill in all fields.')));return;}
+          try{
+            final data=<String,dynamic>{};
+            if(widget.collection=='customers') data.addAll({'fullName':c['fullName']!.text.trim(),'email':c['email']!.text.trim(),'phoneNumber':c['phoneNumber']!.text.trim(),'role':c['role']!.text.trim()});
+            else if(widget.collection=='technicians') data.addAll({'fullName':c['fullName']!.text.trim(),'email':c['email']!.text.trim(),'phoneNumber':c['phoneNumber']!.text.trim(),'specialties':c['specialties']!.text.split(',').map((x)=>x.trim()).where((x)=>x.isNotEmpty).toList(),'rating':numVal(c['rating']!.text)});
+            else data.addAll({'title':c['title']!.text.trim(),'categoryId':c['categoryId']!.text.trim(),'basePrice':numVal(c['basePrice']!.text),'durationMinutes':int.tryParse(c['durationMinutes']!.text.trim())??0});
+            data['updatedAt']=DateTime.now().toIso8601String();
+            final ref=id==null?FirebaseFirestore.instance.collection(widget.collection).doc():FirebaseFirestore.instance.collection(widget.collection).doc(id);
+            if(id==null){data['id']=ref.id;data['createdAt']=DateTime.now().toIso8601String();}
+            await ref.set(data,SetOptions(merge:id!=null));
+            if(dc.mounted)Navigator.pop(dc,true);
+          }catch(e){if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Save failed: $e')));}
+        },child:const Text('Save')),
+      ],
+    ));
+    for(final x in c.values)x.dispose();
+    if(ok==true&&mounted)setState((){});
+  }
+
+  Future<void> deleteRecord(BuildContext context,String id) async {
+    final ok=await showDialog<bool>(context:context,builder:(dc)=>AlertDialog(
+      title:const Text('Delete record?'),
+      content:Text('This permanently deletes this '+pretty(widget.collection).toLowerCase()+' record.'),
+      actions:[
+        TextButton(onPressed:()=>Navigator.pop(dc,false),child:const Text('Cancel')),
+        FilledButton(style:FilledButton.styleFrom(backgroundColor:red),onPressed:()=>Navigator.pop(dc,true),child:const Text('Delete')),
+      ],
+    ));
+    if(ok!=true)return;
+    try{await FirebaseFirestore.instance.collection(widget.collection).doc(id).delete();if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Record deleted.')));}
+    catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Delete failed: $e')));}
+  }
+
   @override Widget build(BuildContext c)=>Padding(padding:const EdgeInsets.all(28),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-    Intro(pretty(collection),'Live Firestore records.'),const SizedBox(height:18),
-    Expanded(child:StreamBuilder<QuerySnapshot<Map<String,dynamic>>>(stream:FirebaseFirestore.instance.collection(collection).snapshots(),builder:(c,s){
-      if(s.connectionState==ConnectionState.waiting)return const Loading();if(s.hasError)return ErrorBox(s.error.toString());
-      final docs=s.data!.docs;if(docs.isEmpty)return const Empty('No records found.');
-      return Card(child:SingleChildScrollView(scrollDirection:Axis.horizontal,child:DataTable(
-        columns:columns.map((x)=>DataColumn(label:Text(x,style:const TextStyle(color:muted,fontSize:11,fontWeight:FontWeight.w800)))).toList(),
-        rows:docs.map((d)=>DataRow(cells:row(d.data(),d.id).map((v)=>DataCell(Text(v.toString(),style:const TextStyle(fontSize:12)))).toList())).toList())));
-    }))
+    Row(children:[
+      Expanded(child:Intro(pretty(widget.collection),'Live Firestore records. Create, edit or delete records.')),
+      FilledButton.icon(onPressed:()=>saveRecord(c),icon:const Icon(Icons.add),label:const Text('Add')),
+    ]),
+    const SizedBox(height:18),
+    Expanded(child:StreamBuilder<QuerySnapshot<Map<String,dynamic>>>(
+      stream:FirebaseFirestore.instance.collection(widget.collection).snapshots(),
+      builder:(c,s){
+        if(s.connectionState==ConnectionState.waiting)return const Loading();
+        if(s.hasError)return ErrorBox(s.error.toString());
+        final docs=s.data!.docs;if(docs.isEmpty)return const Empty('No records found.');
+        return Card(child:SingleChildScrollView(scrollDirection:Axis.horizontal,child:DataTable(
+          columns:[...widget.columns.map((x)=>DataColumn(label:Text(x,style:const TextStyle(color:muted,fontSize:11,fontWeight:FontWeight.w800)))),const DataColumn(label:Text('Actions',style:TextStyle(color:muted,fontSize:11,fontWeight:FontWeight.w800)))],
+          rows:docs.map((d)=>DataRow(cells:[
+            ...row(d.data(),d.id).map((v)=>DataCell(Text(v.toString(),style:const TextStyle(fontSize:12)))),
+            DataCell(Row(mainAxisSize:MainAxisSize.min,children:[
+              IconButton(tooltip:'Edit',onPressed:()=>saveRecord(c,id:d.id,existing:d.data()),icon:const Icon(Icons.edit_outlined,size:18)),
+              IconButton(tooltip:'Delete',onPressed:()=>deleteRecord(c,d.id),icon:const Icon(Icons.delete_outline,size:18,color:red)),
+            ])),
+          ])).toList(),
+        )));
+      },
+    )),
   ]));
 }
+
 class Bookings extends StatefulWidget { const Bookings({super.key}); @override State<Bookings>createState()=>_BookingsState(); }
 class _BookingsState extends State<Bookings>{
   String filter='all';
-  Future<void>complete(String id)async=>FirebaseFirestore.instance.collection('bookings').doc(id).update({'status':'completed','updatedAt':DateTime.now().toIso8601String(),'estimatedArrivalMinutes':0});
+  Future<void>complete(String id) async {
+    try {
+      await FirebaseFirestore.instance.collection('bookings').doc(id).update({'status':'completed','updatedAt':DateTime.now().toIso8601String(),'estimatedArrivalMinutes':0});
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Booking marked as completed.')));
+    } catch(e) { if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Update failed: $e'))); }
+  }
+
+  Future<void>cancel(String id) async {
+    final ok=await showDialog<bool>(context:context,builder:(dc)=>AlertDialog(
+      title:const Text('Cancel booking?'),
+      content:const Text('The booking will remain in Firestore for audit history.'),
+      actions:[
+        TextButton(onPressed:()=>Navigator.pop(dc,false),child:const Text('Keep')),
+        FilledButton(style:FilledButton.styleFrom(backgroundColor:red),onPressed:()=>Navigator.pop(dc,true),child:const Text('Cancel booking')),
+      ],
+    ));
+    if(ok!=true)return;
+    try{await FirebaseFirestore.instance.collection('bookings').doc(id).update({'status':'cancelled','updatedAt':DateTime.now().toIso8601String()});}
+    catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Cancel failed: $e')));}
+  }
   @override Widget build(BuildContext c)=>Padding(padding:const EdgeInsets.all(28),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
     const Intro('Bookings','Monitor jobs and update operational status.'),const SizedBox(height:14),
     Wrap(spacing:7,children:['all','searchingTechnician','accepted','onTheWay','completed'].map((x)=>ChoiceChip(label:Text(pretty(x)),selected:filter==x,onSelected:(_)=>setState(()=>filter=x))).toList()),
@@ -219,7 +324,17 @@ class _BookingsState extends State<Bookings>{
         rows:docs.map((d){final x=d.data(),status=x['status']?.toString()??'pending';return DataRow(cells:[
           DataCell(Text(x['bookingNumber']??d.id)),DataCell(Text(x['customerId']??'—')),DataCell(Text(x['serviceName']??'—')),DataCell(Pill(status)),
           DataCell(Text('PKR '+money(numVal(x['serviceCharge']?['total'])))),
-          DataCell(status=='completed'?const Text('Done',style:TextStyle(color:muted)):TextButton(onPressed:()=>complete(d.id),child:const Text('Complete')))
+          DataCell(status=='completed'||status=='cancelled'
+            ?Text(pretty(status),style:const TextStyle(color:muted))
+            :PopupMenuButton<String>(
+              tooltip:'Actions',
+              onSelected:(action){if(action=='complete')complete(d.id);if(action=='cancel')cancel(d.id);},
+              itemBuilder:(_)=>const[
+                PopupMenuItem(value:'complete',child:Text('Mark complete')),
+                PopupMenuItem(value:'cancel',child:Text('Cancel booking')),
+              ],
+              child:const Icon(Icons.more_horiz),
+            ))
         ]);}).toList())));
     }))
   ]));
