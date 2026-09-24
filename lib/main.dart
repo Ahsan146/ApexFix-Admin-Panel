@@ -60,7 +60,7 @@ class _LoginState extends State<Login> {
     if(email.text.trim().isEmpty||pass.text.isEmpty){setState(()=>error='Enter your email and password.');return;}
     setState(()=>busy=true);
     try { await FirebaseAuth.instance.signInWithEmailAndPassword(email:email.text.trim(),password:pass.text); }
-    on FirebaseAuthException catch(e){setState(()=>{error=e.message??'Sign in failed.',busy=false});}
+    on FirebaseAuthException catch(e){setState((){error=e.message??'Sign in failed.';busy=false;});}
   }
   @override Widget build(BuildContext c)=>Scaffold(
     body:Center(child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:420),child:Padding(
