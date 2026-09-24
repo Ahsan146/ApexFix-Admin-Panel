@@ -12,7 +12,6 @@ dependencies:
   firebase_core: ^4.2.0
   firebase_auth: ^6.1.0
   cloud_firestore: ^6.2.0
-  google_fonts: ^6.2.1
 
 dev_dependencies:
   flutter_test:
@@ -21,3 +20,12 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  fonts:
+    - family: CascadiaCode
+      fonts:
+        - asset: assets/fonts/CascadiaCode-Regular.ttf
+        - asset: assets/fonts/CascadiaCode-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/CascadiaCode-Bold.ttf
+          weight: 700
